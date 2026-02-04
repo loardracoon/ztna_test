@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZTNA Access Validation</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- Material Design 3 Styling Base --- */
+        :root {
+            /* Cores baseadas na imagem (Azul Profundo/Vibrante) */
+            --md-sys-color-primary: #0000FF; /* Azul puro ou similar ao da imagem */
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-error: #FFB4AB;
+            --md-sys-color-success: #b6f2b9;
+            
+            /* Tipografia */
+            --md-sys-typescale-display-large: 700 57px/64px 'Roboto', sans-serif;
+            --md-sys-typescale-headline-medium: 500 28px/36px 'Roboto', sans-serif;
+            --md-sys-typescale-body-large: 400 16px/24px 'Roboto', sans-serif;
+            --md-sys-typescale-label-large: 500 14px/20px 'Roboto', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #0a0066, #0000ff);;
+            color: var(--md-sys-color-on-primary);
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: left;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 2rem;
+            animation: fadeIn 0.8s ease-in-out;
+        }
+
+        /* Animação suave de entrada */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .greeting {
+            font: var(--md-sys-typescale-headline-medium);
+            opacity: 0.9;
+            margin-bottom: 1.5rem;
+        }
+
+        .ip-display {
+            font: var(--md-sys-typescale-display-large);
+            margin-bottom: 1rem;
+            letter-spacing: -0.5px;
+        }
+
+        .details {
+            margin-top: 1rem;
+            font: var(--md-sys-typescale-body-large);
+            opacity: 0.85;
+            line-height: 1.8;
+        }
+
+        .details span {
+            display: block;
+        }
+
+        .status-message {
+            margin-top: 3rem;
+            padding: 1rem 0;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            font: var(--md-sys-typescale-headline-medium);
+            font-size: 1.2rem; /* Ajuste visual */
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Estilos para status Trusted/Untrusted */
+        .status-untrusted {
+            color: var(--md-sys-color-error); /* Vermelho/Rosa claro para erro no fundo escuro */
+            font-weight: 700;
+            text-decoration: underline;
+            text-decoration-style: wavy; /* Ondulado para simular o erro da imagem */
+        }
+
+        .status-trusted {
+            color: var(--md-sys-color-success); /* Verde claro */
+            font-weight: 700;
+        }
+
+        .loading {
+            opacity: 0.5;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="greeting">Hello</div>
+        
+        <div class="ip-display" id="ip-address">
+            <span class="loading">Carregando IP...</span>
+        </div>
+
+        <div class="details">
+            <span id="os-browser">Detectando sistema...</span>
+            <span id="country">Detectando localização...</span>
+        </div>
+
+        <div class="status-message" id="status-container">
+            </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // CONFIGURAÇÃO: Defina aqui o IP Confiável
+        // ==========================================
+        const TRUSTED_IP = "45.175.35.114"; // Substitua pelo IP que você quer testar como 'sucesso'
+        // ==========================================
+
+        async function fetchData() {
+            try {
+                // 1. Obtendo dados de IP e Localização (API Gratuita)
+                const response = await fetch('https://ipapi.co/json/');
+                const data = await response.json();
+
+                const userIp = data.ip || 'Indisponível';
+                const userCountry = data.country_name || 'Desconhecido';
+                
+                // 2. Detectando OS e Navegador via User Agent
+                const platformInfo = getPlatformInfo();
+
+                // 3. Atualizando o HTML
+                document.getElementById('ip-address').innerText = userIp;
+                document.getElementById('os-browser').innerText = platformInfo;
+                document.getElementById('country').innerText = userCountry;
+
+                // 4. Validação ZTNA (Lógica Trust/Untrust)
+                const statusContainer = document.getElementById('status-container');
+                
+                if (userIp === TRUSTED_IP) {
+                    statusContainer.innerHTML = `
+                        <span>[ &#10004; ]</span> 
+                        <span class="status-trusted">YOU ARE ACCESSING FROM A TRUSTED SOURCE (ZTNA VERIFIED)</span>
+                    `;
+                } else {
+                    // Texto fiel ao estilo da imagem (com a correção gramatical leve)
+                    statusContainer.innerHTML = `
+                        <span>[ ! ]</span> 
+                        <span class="status-untrusted">You are accessing from an untrusted source</span>
+                    `;
+                }
+
+            } catch (error) {
+                console.error("Erro ao buscar dados:", error);
+                document.getElementById('ip-address').innerText = "Erro ao carregar";
+            }
+        }
+
+        // Função auxiliar simples para ler o User Agent
+        function getPlatformInfo() {
+            const ua = navigator.userAgent;
+            let os = "Unknown OS";
+            let browser = "Unknown Browser";
+
+            // Detecção simples de OS
+            if (ua.indexOf("Win") !== -1) os = "Windows";
+            if (ua.indexOf("Mac") !== -1) os = "macOS";
+            if (ua.indexOf("Linux") !== -1) os = "Linux";
+            if (ua.indexOf("Android") !== -1) os = "Android";
+            if (ua.indexOf("iPhone") !== -1 || ua.indexOf("iPad") !== -1) os = "iOS";
+
+            // Detecção simples de Navegador
+            if (ua.indexOf("Chrome") !== -1) browser = "Chrome";
+            else if (ua.indexOf("Firefox") !== -1) browser = "Firefox";
+            else if (ua.indexOf("Safari") !== -1) browser = "Safari";
+            else if (ua.indexOf("Edge") !== -1) browser = "Edge";
+
+            return `${browser} / ${os}`;
+        }
+
+        // Executa ao carregar
+        fetchData();
+    </script>
+</body>
+</html>
